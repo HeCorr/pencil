@@ -394,7 +394,7 @@ void ScribbleArea::keyPressEvent(QKeyEvent *event)
     }
 
     // --- fixed control key shortcuts ---
-    if (event->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier) &&
+    if (event->modifiers() == (Qt::ControlModifier) &&
         editor()->tools()->setTemporaryTool(ERASER, {}, event->modifiers()))
     {
         return;
