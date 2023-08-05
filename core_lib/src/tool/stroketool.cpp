@@ -70,7 +70,7 @@ void StrokeTool::startStroke(PointerEvent::InputType inputType)
 bool StrokeTool::keyPressEvent(QKeyEvent *event)
 {
     switch (event->key()) {
-    case Qt::Key_Alt:
+    case Qt::Key_Shift:
         if (mEditor->tools()->setTemporaryTool(EYEDROPPER, {}, Qt::AltModifier))
         {
             return true;
