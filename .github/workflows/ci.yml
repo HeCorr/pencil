@@ -24,19 +24,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: Linux x86_64
-          os: ubuntu-latest
-          # XXX: --privileged is sort of a brute-force solution to get FUSE
-          #      working inside Docker, however so far I haven’t been able to
-          #      figure out precisely *which* privileges are needed.
-          container: { image: "ubuntu:16.04", options: --privileged }
-        - name: macOS x86_64
-          os: macos-latest
-          container:
-        - name: Windows x86
-          os: windows-2019
-          arch: win32_msvc2019
-          container:
+        # - name: Linux x86_64
+        #   os: ubuntu-latest
+        #   # XXX: --privileged is sort of a brute-force solution to get FUSE
+        #   #      working inside Docker, however so far I haven’t been able to
+        #   #      figure out precisely *which* privileges are needed.
+        #   container: { image: "ubuntu:16.04", options: --privileged }
+        # - name: macOS x86_64
+        #   os: macos-latest
+        #   container:
+        # - name: Windows x86
+        #   os: windows-2019
+        #   arch: win32_msvc2019
+        #   container:
         - name: Windows x86_64
           os: windows-2019
           arch: win64_msvc2019_64
