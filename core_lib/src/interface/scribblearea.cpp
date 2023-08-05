@@ -653,7 +653,7 @@ void ScribbleArea::pointerPressEvent(PointerEvent* event)
         }
     }
 
-    if (event->buttons() & (Qt::MidButton | Qt::RightButton) &&
+    if (event->buttons() & (Qt::MidButton) &&
         editor()->tools()->setTemporaryTool(HAND, event->buttons()))
     {
         currentTool()->pointerPressEvent(event);
