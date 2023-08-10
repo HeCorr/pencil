@@ -402,7 +402,7 @@ void ScribbleArea::keyPressEvent(QKeyEvent *event)
         return;
     }
 
-    if (event->modifiers() == (Qt::ShiftModifier) &&
+    if (event->modifiers() == (Qt::ControlModifier | Qt::AltModifier) &&
         editor()->tools()->setTemporaryTool(EYEDROPPER, {}, event->modifiers()))
     {
         return;
