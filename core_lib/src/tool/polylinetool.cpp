@@ -239,16 +239,19 @@ void PolylineTool::drawPolyline(QList<QPointF> points, QPointF endPoint)
         Layer* layer = mEditor->layers()->currentLayer();
 
         // Bitmap by default
+
+        QList<QPointF> pointsCopy = points;
+        pointsCopy << endPoint;
         QPainterPath tempPath;
         if (properties.bezier_state)
         {
-            tempPath = BezierCurve(points).getSimplePath();
+            tempPath = BezierCurve(pointsCopy).getSimplePath();
         }
         else
         {
             tempPath = BezierCurve(points).getStraightPath();
+            tempPath.lineTo(endPoint);
         }
-        tempPath.lineTo(endPoint);
 
         // Vector otherwise
         if (layer->type() == Layer::VECTOR)
