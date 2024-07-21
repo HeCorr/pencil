@@ -154,6 +154,7 @@ void PolylineTool::pointerPressEvent(PointerEvent* event)
                 }
             }
             mPoints << getCurrentPoint();
+            drawPolyline(mPoints, getCurrentPoint());
             emit isActiveChanged(POLYLINE, true);
         }
     }
