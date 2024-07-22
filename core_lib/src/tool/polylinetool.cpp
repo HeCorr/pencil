@@ -154,6 +154,7 @@ void PolylineTool::pointerPressEvent(PointerEvent* event)
                 }
             }
             mPoints << getCurrentPoint();
+            drawPolyline(mPoints, getCurrentPoint());
             emit isActiveChanged(POLYLINE, true);
         }
     }
@@ -277,16 +278,19 @@ void PolylineTool::drawPolyline(QList<QPointF> points, QPointF endPoint)
         Layer* layer = mEditor->layers()->currentLayer();
 
         // Bitmap by default
+
+        QList<QPointF> pointsCopy = points;
+        pointsCopy << endPoint;
         QPainterPath tempPath;
         if (properties.bezier_state)
         {
-            tempPath = BezierCurve(points).getSimplePath();
+            tempPath = BezierCurve(pointsCopy).getSimplePath();
         }
         else
         {
             tempPath = BezierCurve(points).getStraightPath();
+            tempPath.lineTo(endPoint);
         }
-        tempPath.lineTo(endPoint);
 
         if (mClosed && points.size() > 1)
         {
