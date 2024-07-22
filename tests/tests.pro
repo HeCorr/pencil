@@ -6,18 +6,12 @@
 
 ! include( ../util/common.pri ) { error( Could not find the common.pri file! ) }
 
-QT += core widgets gui xml xmlpatterns multimedia svg testlib
-
 TEMPLATE = app
-
-TARGET = tests
-
 CONFIG += console
 CONFIG -= app_bundle
+QT += core widgets gui xml multimedia svg
 
-MOC_DIR = .moc
-OBJECTS_DIR = .obj
-DESTDIR = bin
+TARGET = tests
 
 RESOURCES += data/tests.qrc
 
@@ -39,8 +33,11 @@ SOURCES += \
     src/main.cpp \
     src/test_colormanager.cpp \
     src/test_layer.cpp \
+    src/test_layerbitmap.cpp \
     src/test_layercamera.cpp \
     src/test_layermanager.cpp \
+    src/test_layersound.cpp \
+    src/test_layervector.cpp \
     src/test_object.cpp \
     src/test_filemanager.cpp \
     src/test_bitmapimage.cpp \
@@ -52,8 +49,9 @@ SOURCES += \
 
 INCLUDEPATH += $$PWD/../core_lib/src
 
-CONFIG(debug,debug|release) BUILDTYPE = debug
-CONFIG(release,debug|release) BUILDTYPE = release
+BUILDTYPE =
+debug_and_release:CONFIG(debug,debug|release) BUILDTYPE = debug
+debug_and_release:CONFIG(release,debug|release) BUILDTYPE = release
 
 win32-msvc* {
     LIBS += -L$$OUT_PWD/../core_lib/$$BUILDTYPE/ -lcore_lib

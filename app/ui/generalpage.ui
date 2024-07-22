@@ -13,18 +13,6 @@
   <layout class="QGridLayout" name="gridLayout_2">
    <item row="0" column="0">
     <widget class="QScrollArea" name="scrollArea">
-     <property name="minimumSize">
-      <size>
-       <width>128</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>400</width>
-       <height>16777215</height>
-      </size>
-     </property>
      <property name="verticalScrollBarPolicy">
       <enum>Qt::ScrollBarAlwaysOn</enum>
      </property>
@@ -115,9 +103,9 @@
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="dottedCursorBox">
+           <widget class="QCheckBox" name="canvasCursorBox">
             <property name="text">
-             <string>Dotted Cursor</string>
+             <string>Canvas Cursor</string>
             </property>
            </widget>
           </item>
@@ -515,7 +503,7 @@
   <tabstop>windowOpacityLevel</tabstop>
   <tabstop>shadowsBox</tabstop>
   <tabstop>toolCursorsBox</tabstop>
-  <tabstop>dottedCursorBox</tabstop>
+  <tabstop>canvasCursorBox</tabstop>
   <tabstop>checkerBackgroundButton</tabstop>
   <tabstop>whiteBackgroundButton</tabstop>
   <tabstop>greyBackgroundButton</tabstop>

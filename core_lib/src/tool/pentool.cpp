@@ -22,7 +22,6 @@ GNU General Public License for more details.
 #include "vectorimage.h"
 #include "layervector.h"
 #include "colormanager.h"
-#include "strokemanager.h"
 #include "layermanager.h"
 #include "viewmanager.h"
 #include "selectionmanager.h"
@@ -38,6 +37,8 @@ PenTool::PenTool(QObject* parent) : StrokeTool(parent)
 
 void PenTool::loadSettings()
 {
+    StrokeTool::loadSettings();
+
     mPropertyEnabled[WIDTH] = true;
     mPropertyEnabled[PRESSURE] = true;
     mPropertyEnabled[VECTORMERGE] = true;
@@ -111,32 +112,53 @@ QCursor PenTool::cursor()
 {
     if (mEditor->preference()->isOn(SETTING::TOOL_CURSOR))
     {
-        return QCursor(QPixmap(":icons/pen.png"), -5, 0);
+        return QCursor(QPixmap(":icons/general/cursor-pen.svg"), 5, 14);
     }
-    return QCursor(QPixmap(":icons/cross.png"), 10, 10);
+    return QCursor(QPixmap(":icons/general/cross.png"), 10, 10);
 }
 
 void PenTool::pointerPressEvent(PointerEvent *event)
 {
+    mInterpolator.pointerPressEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     mMouseDownPoint = getCurrentPoint();
     mLastBrushPoint = getCurrentPoint();
 
     startStroke(event->inputType());
+
+    StrokeTool::pointerPressEvent(event);
 }
 
 void PenTool::pointerMoveEvent(PointerEvent* event)
 {
+    mInterpolator.pointerMoveEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     if (event->buttons() & Qt::LeftButton && event->inputType() == mCurrentInputType)
     {
-        mCurrentPressure = strokeManager()->getPressure();
+        mCurrentPressure = mInterpolator.getPressure();
         drawStroke();
-        if (properties.stabilizerLevel != strokeManager()->getStabilizerLevel())
-            strokeManager()->setStabilizerLevel(properties.stabilizerLevel);
+        if (properties.stabilizerLevel != mInterpolator.getStabilizerLevel())
+        {
+            mInterpolator.setStabilizerLevel(properties.stabilizerLevel);
+        }
     }
+
+    StrokeTool::pointerMoveEvent(event);
 }
 
 void PenTool::pointerReleaseEvent(PointerEvent *event)
 {
+    mInterpolator.pointerReleaseEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     if (event->inputType() != mCurrentInputType) return;
 
     mEditor->backup(typeName());
@@ -153,11 +175,12 @@ void PenTool::pointerReleaseEvent(PointerEvent *event)
         drawStroke();
     }
 
-    if (layer->type() == Layer::BITMAP)
-        paintBitmapStroke();
-    else if (layer->type() == Layer::VECTOR)
+    if (layer->type() == Layer::VECTOR) {
         paintVectorStroke(layer);
+    }
     endStroke();
+
+    StrokeTool::pointerReleaseEvent(event);
 }
 
 // draw a single paint dab at the given location
@@ -180,7 +203,7 @@ void PenTool::paintAt(QPointF point)
 void PenTool::drawStroke()
 {
     StrokeTool::drawStroke();
-    QList<QPointF> p = strokeManager()->interpolateStroke();
+    QList<QPointF> p = mInterpolator.interpolateStroke();
 
     Layer* layer = mEditor->layers()->currentLayer();
 
@@ -235,19 +258,13 @@ void PenTool::drawStroke()
     }
 }
 
-void PenTool::paintBitmapStroke()
-{
-    mScribbleArea->paintBitmapBuffer();
-    mScribbleArea->clearBitmapBuffer();
-}
-
 void PenTool::paintVectorStroke(Layer* layer)
 {
     if (mStrokePoints.empty())
         return;
 
     // Clear the temporary pixel path
-    mScribbleArea->clearBitmapBuffer();
+    mScribbleArea->clearDrawingBuffer();
     qreal tol = mScribbleArea->getCurveSmoothing() / mEditor->view()->scaling();
 
     BezierCurve curve(mStrokePoints, mStrokePressures, tol);

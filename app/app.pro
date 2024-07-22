@@ -6,23 +6,24 @@
 
 ! include( ../util/common.pri ) { error( Could not find the common.pri file! ) }
 
+TEMPLATE = app
+CONFIG += precompile_header lrelease embed_translations
 QT += core widgets gui xml multimedia svg network
 
-TEMPLATE = app
 TARGET = pencil2d
-QMAKE_APPLICATION_BUNDLE_NAME = Pencil2D
-
-CONFIG += qt precompile_header lrelease embed_translations
-
-DESTDIR = ../bin
-MOC_DIR = .moc
-OBJECTS_DIR = .obj
-UI_DIR = .ui
 
 RESOURCES += data/app.qrc
 
+MUI_TRANSLATIONS += \
+        translations/mui_cs.po \
+        translations/mui_de.po
+
+RC_LANGS.cs = --lang LANG_CZECH --sublang SUBLANG_NEUTRAL
+RC_LANGS.de = --lang LANG_GERMAN --sublang SUBLANG_NEUTRAL
+
 EXTRA_TRANSLATIONS += \
 	$$PWD/../translations/pencil_ar.ts \
+	$$PWD/../translations/pencil_bg.ts \
 	$$PWD/../translations/pencil_ca.ts \
 	$$PWD/../translations/pencil_cs.ts \
 	$$PWD/../translations/pencil_da.ts \
@@ -31,6 +32,7 @@ EXTRA_TRANSLATIONS += \
 	$$PWD/../translations/pencil_en.ts \
 	$$PWD/../translations/pencil_es.ts \
 	$$PWD/../translations/pencil_et.ts \
+	$$PWD/../translations/pencil_fa.ts \
 	$$PWD/../translations/pencil_fr.ts \
 	$$PWD/../translations/pencil_he.ts \
 	$$PWD/../translations/pencil_hu_HU.ts \
@@ -38,6 +40,9 @@ EXTRA_TRANSLATIONS += \
 	$$PWD/../translations/pencil_it.ts \
 	$$PWD/../translations/pencil_ja.ts \
 	$$PWD/../translations/pencil_kab.ts \
+	$$PWD/../translations/pencil_ko.ts \
+	$$PWD/../translations/pencil_nb.ts \
+	$$PWD/../translations/pencil_nl_NL.ts \
 	$$PWD/../translations/pencil_pl.ts \
 	$$PWD/../translations/pencil_pt.ts \
 	$$PWD/../translations/pencil_pt_BR.ts \
@@ -46,6 +51,7 @@ EXTRA_TRANSLATIONS += \
 	$$PWD/../translations/pencil_sv.ts \
 	$$PWD/../translations/pencil_tr.ts \
 	$$PWD/../translations/pencil_vi.ts \
+	$$PWD/../translations/pencil_yue.ts \
 	$$PWD/../translations/pencil_zh_CN.ts \
 	$$PWD/../translations/pencil_zh_TW.ts
 
@@ -111,7 +117,6 @@ HEADERS += \
     src/checkupdatesdialog.h \
     src/presetdialog.h     \
     src/repositionframesdialog.h \
-    src/presetdialog.h \
     src/commandlineparser.h \
     src/commandlineexporter.h \
     src/statusbar.h \
@@ -219,10 +224,64 @@ macx {
     QMAKE_BUNDLE_DATA += FILE_ICONS
 
     QMAKE_TARGET_BUNDLE_PREFIX += org.pencil2d
+    QMAKE_APPLICATION_BUNDLE_NAME = Pencil2D
 }
 
 win32 {
-    RC_FILE = data/pencil2d.rc
+    target.path = /
+    visualelements.path = /
+    visualelements.files = data/pencil2d.VisualElementsManifest.xml $$OUT_PWD\resources.pri
+    visualelements.CONFIG += no_check_exist
+    visualelements.depends += resources.pri
+    resources.path = /resources
+    resources.files = data/resources/*
+
+    PRI_CONFIG = data/resources.xml
+    PRI_INDEX_NAME = Pencil2D
+    RC_FILES = data/version.rc data/mui.rc
+    INSTALLS += target visualelements resources
+
+    makepri.name = makepri
+    makepri.input = PRI_CONFIG
+    makepri.output = ${QMAKE_FILE_IN_BASE}.pri
+    makepri.commands = makepri new /o /in $$PRI_INDEX_NAME /pr ${QMAKE_FILE_PATH} /cf ${QMAKE_FILE_IN} /of ${QMAKE_FILE_OUT}
+    silent: makepri.commands = @echo makepri ${QMAKE_FILE_IN} && $$makepri.commands
+    makepri.CONFIG = no_link
+    QMAKE_EXTRA_COMPILERS += makepri
+
+    ensurePathEnv()
+    isEmpty(PO2RC): for(dir, QMAKE_PATH_ENV) {
+        exists("$$dir/po2rc.exe") {
+            PO2RC = "$$dir/po2rc.exe"
+            break()
+        }
+    }
+    !isEmpty(PO2RC) {
+        defineReplace(rcLang) {
+            name = $$basename(1)
+            base = $$section(name, ., 0, -2)
+            return($$member(RC_LANGS.$$section(base, _, 1), 0, -1))
+        }
+        po2rc.name = po2rc
+        po2rc.input = MUI_TRANSLATIONS
+        po2rc.output = ${QMAKE_FILE_IN_BASE}.rc
+        po2rc.commands = $$shell_path($$PO2RC) -t $$PWD/data/mui.rc ${QMAKE_FILE_IN} ${QMAKE_FUNC_FILE_IN_rcLang} ${QMAKE_FILE_OUT}
+        silent: makepri.commands = @echo po2rc ${QMAKE_FILE_IN} && $$makepri.commands
+        po2rc.CONFIG = no_link
+        QMAKE_EXTRA_COMPILERS += po2rc
+        # variable_out doesn't seem to work in this case
+        for(file, MUI_TRANSLATIONS): {
+            name = $$basename(file)
+            RC_FILES += $$replace(name, .po, .rc)
+        }
+    } else {
+        warning("po2rc was not found. MUI resources will not be translated. You can safely ignore this warning if you do not plan to distribute this build of Pencil2D through its installer.")
+    }
+
+    for(file, RC_FILES): RC_INCLUDES += "$${LITERAL_HASH}include \"$$file\""
+    write_file($$OUT_PWD/pencil2d.rc, RC_INCLUDES)|error()
+    RC_FILE = $$OUT_PWD/pencil2d.rc
+    RC_INCLUDEPATH += $$PWD $$PWD/data
 }
 
 unix:!macx {
@@ -253,8 +312,9 @@ unix:!macx {
 
 INCLUDEPATH += ../../core_lib/src
 
-CONFIG(debug,debug|release) BUILDTYPE = debug
-CONFIG(release,debug|release) BUILDTYPE = release
+BUILDTYPE =
+debug_and_release:CONFIG(debug,debug|release) BUILDTYPE = debug
+debug_and_release:CONFIG(release,debug|release) BUILDTYPE = release
 
 win32-msvc* {
     LIBS += -L$$OUT_PWD/../core_lib/$$BUILDTYPE/ -lcore_lib

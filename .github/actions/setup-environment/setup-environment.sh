@@ -5,7 +5,9 @@ setup_linux() {
   # Our container image uses the non-Unicode C locale by default
   echo "LANG=C.UTF-8" >> "${GITHUB_ENV}"
   # Set up Qt environment variables and export them to the GitHub Actions workflow
-  (printenv; (. /opt/qt515/bin/qt515-env.sh; printenv)) | sort -st= -k1,1 | uniq -u >> "${GITHUB_ENV}"
+  if [ -f /opt/qt515/bin/qt515-env.sh ]; then
+    (printenv; (. /opt/qt515/bin/qt515-env.sh; printenv)) | sort -st= -k1,1 | uniq -u >> "${GITHUB_ENV}"
+  fi
 }
 
 setup_macos() {
@@ -17,6 +19,8 @@ setup_windows() {
   local platform="${INPUT_ARCH%%_*}"
   local vcvars="C:\\Program^ Files^ ^(x86^)\\Microsoft^ Visual^ Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvars${platform#win}.bat"
   ($(which cmd) //c set; $(which cmd) //c "${vcvars} 2>&1>nul && set") | sort -st= -k1,1 | uniq -u >> "${GITHUB_ENV}"
+  echo "${JAVA_HOME_17_X64}\\bin" >> "${GITHUB_PATH}"
+  realpath okapi/ >> "${GITHUB_PATH}"
 }
 
 "setup_$(echo "${RUNNER_OS}" | tr '[A-Z]' '[a-z]')"

@@ -58,7 +58,7 @@ Pencil2D::Pencil2D(int& argc, char** argv) :
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
     // Associate the application with our desktop entry
-    setDesktopFileName("org.pencil2d.Pencil2D.desktop");
+    setDesktopFileName("org.pencil2d.Pencil2D");
 #endif
     installTranslators();
 }
@@ -150,7 +150,11 @@ void Pencil2D::installTranslators()
 #endif
 
     std::unique_ptr<QTranslator> qtTranslator(new QTranslator(this));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    if (qtTranslator->load(locale, "qt", "_", QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+#else
     if (qtTranslator->load(locale, "qt", "_", QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+#endif
     {
         installTranslator(qtTranslator.release());
     }

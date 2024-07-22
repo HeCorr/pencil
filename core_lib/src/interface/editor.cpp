@@ -17,12 +17,9 @@ GNU General Public License for more details.
 
 #include "editor.h"
 
-#include <QApplication>
-#include <QClipboard>
 #include <QTimer>
 #include <QImageReader>
 #include <QDropEvent>
-#include <QMimeData>
 #include <QTemporaryDir>
 
 #include "object.h"
@@ -914,20 +911,25 @@ void Editor::updateObject()
     emit updateLayerCount();
 }
 
-Status Editor::importBitmapImage(const QString& filePath, int space)
+Status Editor::importBitmapImage(const QString& filePath)
 {
     QImageReader reader(filePath);
 
     Q_ASSERT(layers()->currentLayer()->type() == Layer::BITMAP);
-    auto layer = static_cast<LayerBitmap*>(layers()->currentLayer());
+    const auto layer = static_cast<LayerBitmap*>(layers()->currentLayer());
+
+    if (!layer->visible())
+    {
+        mScribbleArea->showLayerNotVisibleWarning();
+        return Status::SAFE;
+    }
 
     Status status = Status::OK;
     DebugDetails dd;
     dd << QString("Raw file path: %1").arg(filePath);
 
     QImage img(reader.size(), QImage::Format_ARGB32_Premultiplied);
-    if (img.isNull())
-    {
+    if (!reader.read(&img)) {
         QString format = reader.format();
         if (!format.isEmpty())
         {
@@ -943,7 +945,7 @@ Status Editor::importBitmapImage(const QString& filePath, int space)
             break;
         case QImageReader::UnsupportedFormatError:
             errorDesc = tr("Image format is not supported. Please convert the image file to one of the following formats and try again:\n%1")
-                        .arg((QString)reader.supportedImageFormats().join(", "));
+                        .arg(QString::fromUtf8(reader.supportedImageFormats().join(", ")));
             break;
         default:
             errorDesc = tr("An error has occurred while reading the image. Please check that the file is a valid image and try again.");
@@ -955,33 +957,19 @@ Status Editor::importBitmapImage(const QString& filePath, int space)
     const QPoint pos(view()->getImportView().dx() - (img.width() / 2),
                      view()->getImportView().dy() - (img.height() / 2));
 
-    while (reader.read(&img))
+    if (!layer->keyExists(mFrame))
     {
-        int frameNumber = mFrame;
-        if (!layer->keyExists(frameNumber))
-        {
-            addNewKey();
-        }
-        BitmapImage* bitmapImage = layer->getBitmapImageAtFrame(frameNumber);
-        BitmapImage importedBitmapImage(pos, img);
-        bitmapImage->paste(&importedBitmapImage);
-        emit frameModified(bitmapImage->pos());
-
-        if (space > 1) {
-            frameNumber += space;
-        } else {
-            frameNumber += 1;
-        }
-        scrubTo(frameNumber);
-
-        backup(tr("Import Image"));
-
-        // Workaround for tiff import getting stuck in this loop
-        if (!reader.supportsAnimation())
-        {
-            break;
-        }
+        const bool ok = addNewKey();
+        Q_ASSERT(ok);
     }
+    BitmapImage* bitmapImage = layer->getBitmapImageAtFrame(mFrame);
+    BitmapImage importedBitmapImage(pos, img);
+    bitmapImage->paste(&importedBitmapImage);
+    emit frameModified(bitmapImage->pos());
+
+    scrubTo(mFrame+1);
+
+    backup(tr("Import Image"));
 
     return status;
 }
@@ -1048,17 +1036,76 @@ Status Editor::importImage(const QString& filePath)
     }
 }
 
-Status Editor::importGIF(const QString& filePath, int numOfImages)
+Status Editor::importAnimatedImage(const QString& filePath, int frameSpacing, const std::function<void(int)>& progressChanged, const std::function<bool()>& wasCanceled)
 {
+    frameSpacing = qMax(1, frameSpacing);
+
+    DebugDetails dd;
+    dd << QString("Raw file path: %1").arg(filePath);
+
     Layer* layer = layers()->currentLayer();
     if (layer->type() != Layer::BITMAP)
     {
-        DebugDetails dd;
-        dd << QString("Raw file path: %1").arg(filePath);
         dd << QString("Current layer: %1").arg(layer->type());
         return Status(Status::ERROR_INVALID_LAYER_TYPE, dd, tr("Import failed"), tr("You can only import images to a bitmap layer."));
     }
-    return importBitmapImage(filePath, numOfImages);
+    LayerBitmap* bitmapLayer = static_cast<LayerBitmap*>(layers()->currentLayer());
+
+    QImageReader reader(filePath);
+    dd << QString("QImageReader format: %1").arg(QString(reader.format()));
+    if (!reader.supportsAnimation()) {
+        return Status(Status::ERROR_INVALID_LAYER_TYPE, dd, tr("Import failed"), tr("The selected image has a format that does not support animation."));
+    }
+
+    QImage img(reader.size(), QImage::Format_ARGB32_Premultiplied);
+    const QPoint pos(view()->getImportView().dx() - (img.width() / 2),
+                     view()->getImportView().dy() - (img.height() / 2));
+    int totalFrames = reader.imageCount();
+    while (reader.read(&img))
+    {
+        if (reader.error())
+        {
+            dd << QString("QImageReader ImageReaderError type: %1").arg(reader.errorString());
+
+            QString errorDesc;
+            switch(reader.error())
+            {
+            case QImageReader::ImageReaderError::FileNotFoundError:
+                errorDesc = tr("File not found at path \"%1\". Please check the image is present at the specified location and try again.").arg(filePath);
+                break;
+            case QImageReader::UnsupportedFormatError:
+                errorDesc = tr("Image format is not supported. Please convert the image file to one of the following formats and try again:\n%1")
+                            .arg((QString)reader.supportedImageFormats().join(", "));
+                break;
+            default:
+                errorDesc = tr("An error has occurred while reading the image. Please check that the file is a valid image and try again.");
+            }
+
+            return Status(Status::FAIL, dd, tr("Import failed"), errorDesc);
+        }
+
+        if (!bitmapLayer->keyExists(mFrame))
+        {
+            addNewKey();
+        }
+        BitmapImage* bitmapImage = bitmapLayer->getBitmapImageAtFrame(mFrame);
+        BitmapImage importedBitmapImage(pos, img);
+        bitmapImage->paste(&importedBitmapImage);
+        emit frameModified(bitmapImage->pos());
+
+        if (wasCanceled())
+        {
+            break;
+        }
+
+        scrubTo(mFrame + frameSpacing);
+
+        backup(tr("Import Image"));
+
+        progressChanged(qFloor(qMin(static_cast<double>(reader.currentImageNumber()) / totalFrames, 1.0) * 100));
+    }
+
+    return Status::OK;
 }
 
 void Editor::selectAll() const
@@ -1109,14 +1156,9 @@ void Editor::deselectAll() const
     }
 }
 
-void Editor::updateFrame(int frameNumber)
+void Editor::updateFrame()
 {
-    mScribbleArea->updateFrame(frameNumber);
-}
-
-void Editor::updateCurrentFrame()
-{
-    mScribbleArea->updateCurrentFrame();
+    mScribbleArea->updateFrame();
 }
 
 void Editor::setCurrentLayerIndex(int i)
@@ -1173,7 +1215,7 @@ KeyFrame* Editor::addNewKey()
     return addKeyFrame(layers()->currentLayerIndex(), currentFrame());
 }
 
-KeyFrame* Editor::addKeyFrame(int layerNumber, int frameIndex)
+KeyFrame* Editor::addKeyFrame(const int layerNumber, int frameIndex)
 {
     Layer* layer = mObject->getLayer(layerNumber);
     Q_ASSERT(layer);
@@ -1199,13 +1241,11 @@ KeyFrame* Editor::addKeyFrame(int layerNumber, int frameIndex)
         }
     }
 
-    bool ok = layer->addNewKeyFrameAt(frameIndex);
-    if (ok)
-    {
-        scrubTo(frameIndex); // currentFrameChanged() emit inside.
-        emit frameModified(frameIndex);
-        layers()->notifyAnimationLengthChanged();
-    }
+    const bool ok = layer->addNewKeyFrameAt(frameIndex);
+    Q_ASSERT(ok); // We already ensured that there is no keyframe at frameIndex, so this should always succeed
+    scrubTo(frameIndex); // currentFrameChanged() emit inside.
+    emit frameModified(frameIndex);
+    layers()->notifyAnimationLengthChanged();
     return layer->getKeyFrameAt(frameIndex);
 }
 

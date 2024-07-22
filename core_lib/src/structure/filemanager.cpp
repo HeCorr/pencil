@@ -24,6 +24,7 @@ GNU General Public License for more details.
 #include "fileformat.h"
 #include "object.h"
 #include "layercamera.h"
+#include "util/util.h"
 
 FileManager::FileManager(QObject* parent) : QObject(parent)
 {
@@ -51,7 +52,6 @@ Object* FileManager::load(const QString& sFileName)
 
     // Test file format: new zipped .pclx or old .pcl?
     bool isArchive = isArchiveFormat(sFileName);
-    QString isArchiveStr = "Is archive: " + QString(isArchive);
 
     if (!isArchive)
     {
@@ -613,8 +613,8 @@ bool FileManager::loadPalette(Object* obj)
 {
     FILEMANAGER_LOG("Load Palette..");
 
-    QString paletteFilePath = QDir(obj->dataDir()).filePath(PFF_PALETTE_FILE);
-    if (!obj->importPalette(paletteFilePath))
+    QString paletteFilePath = validateDataPath(PFF_PALETTE_FILE, obj->dataDir());
+    if (paletteFilePath.isEmpty() || !obj->importPalette(paletteFilePath))
     {
         obj->loadDefaultPalette();
     }
@@ -837,7 +837,7 @@ Status FileManager::recoverObject(Object* object)
     file.close();
 
     QDomDocument xmlDoc;
-    mainXmlOK &= xmlDoc.setContent(&file);
+    mainXmlOK &= !!xmlDoc.setContent(&file);
 
     QDomDocumentType type = xmlDoc.doctype();
     mainXmlOK &= (type.name() == "PencilDocument" || type.name() == "MyObject");
@@ -846,7 +846,7 @@ Status FileManager::recoverObject(Object* object)
     mainXmlOK &= (!root.isNull());
 
     QDomElement objectTag = root.firstChildElement("object");
-    mainXmlOK &= (objectTag.isNull() == false);
+    mainXmlOK &= (!objectTag.isNull());
 
     if (mainXmlOK == false)
     {

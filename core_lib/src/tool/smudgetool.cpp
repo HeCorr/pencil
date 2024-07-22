@@ -24,7 +24,6 @@ GNU General Public License for more details.
 #include "scribblearea.h"
 
 #include "layermanager.h"
-#include "strokemanager.h"
 #include "viewmanager.h"
 #include "selectionmanager.h"
 
@@ -44,6 +43,8 @@ ToolType SmudgeTool::type()
 
 void SmudgeTool::loadSettings()
 {
+    StrokeTool::loadSettings();
+
     mPropertyEnabled[WIDTH] = true;
     mPropertyEnabled[FEATHER] = true;
 
@@ -104,12 +105,12 @@ bool SmudgeTool::emptyFrameActionEnabled()
 
 QCursor SmudgeTool::cursor()
 {
-    qDebug() << "smudge tool";
     if (toolMode == 0) { //normal mode
-        return QCursor(QPixmap(":icons/smudge.png"), 0, 16);
+        return QCursor(QPixmap(":icons/general/cursor-smudge.svg"), 4, 18);
+
     }
     else { // blured mode
-        return QCursor(QPixmap(":icons/liquify.png"), -4, 16);
+        return QCursor(QPixmap(":icons/general/cursor-smudge-liquify.svg"), 4, 18);
     }
 }
 
@@ -121,7 +122,7 @@ bool SmudgeTool::keyPressEvent(QKeyEvent *event)
         mScribbleArea->setCursor(cursor()); // update cursor
         return true;
     }
-    return BaseTool::keyPressEvent(event);
+    return StrokeTool::keyPressEvent(event);
 }
 
 bool SmudgeTool::keyReleaseEvent(QKeyEvent *event)
@@ -132,12 +133,15 @@ bool SmudgeTool::keyReleaseEvent(QKeyEvent *event)
         mScribbleArea->setCursor(cursor()); // update cursor
         return true;
     }
-    return BaseTool::keyReleaseEvent(event);
+    return StrokeTool::keyReleaseEvent(event);
 }
 
 void SmudgeTool::pointerPressEvent(PointerEvent* event)
 {
-    //qDebug() << "smudgetool: mousePressEvent";
+    mInterpolator.pointerPressEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
 
     Layer* layer = mEditor->layers()->currentLayer();
     auto selectMan = mEditor->select();
@@ -186,10 +190,17 @@ void SmudgeTool::pointerPressEvent(PointerEvent* event)
             }
         }
     }
+
+    StrokeTool::pointerPressEvent(event);
 }
 
 void SmudgeTool::pointerMoveEvent(PointerEvent* event)
 {
+    mInterpolator.pointerMoveEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     if (event->inputType() != mCurrentInputType) return;
 
     Layer* layer = mEditor->layers()->currentLayer();
@@ -240,10 +251,17 @@ void SmudgeTool::pointerMoveEvent(PointerEvent* event)
             mScribbleArea->update();
         }
     }
+
+    StrokeTool::pointerMoveEvent(event);
 }
 
 void SmudgeTool::pointerReleaseEvent(PointerEvent* event)
 {
+    mInterpolator.pointerReleaseEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     if (event->inputType() != mCurrentInputType) return;
 
     Layer* layer = mEditor->layers()->currentLayer();
@@ -257,7 +275,7 @@ void SmudgeTool::pointerReleaseEvent(PointerEvent* event)
         {
             drawStroke();
             mScribbleArea->paintBitmapBuffer();
-            mScribbleArea->clearBitmapBuffer();
+            mScribbleArea->clearDrawingBuffer();
             endStroke();
         }
         else if (layer->type() == Layer::VECTOR)
@@ -276,20 +294,20 @@ void SmudgeTool::pointerReleaseEvent(PointerEvent* event)
             mEditor->setModified(mEditor->layers()->currentLayerIndex(), mEditor->currentFrame());
         }
     }
+
+    StrokeTool::pointerReleaseEvent(event);
 }
 
 void SmudgeTool::drawStroke()
 {
-    if (!mScribbleArea->isLayerPaintable()) return;
-
     Layer* layer = mEditor->layers()->currentLayer();
-    if (layer == nullptr) { return; }
+    if (layer == nullptr || !layer->isPaintable()) { return; }
 
     BitmapImage *sourceImage = static_cast<LayerBitmap*>(layer)->getLastBitmapImageAtFrame(mEditor->currentFrame(), 0);
     if (sourceImage == nullptr) { return; } // Can happen if the first frame is deleted while drawing
     BitmapImage targetImage = sourceImage->copy();
     StrokeTool::drawStroke();
-    QList<QPointF> p = strokeManager()->interpolateStroke();
+    QList<QPointF> p = mInterpolator.interpolateStroke();
 
     for (int i = 0; i < p.size(); i++)
     {
@@ -303,7 +321,6 @@ void SmudgeTool::drawStroke()
     //opacity = currentPressure; // todo: Probably not interesting?!
     //brushWidth = brushWidth * opacity;
 
-    BlitRect rect;
     QPointF a = mLastBrushPoint;
     QPointF b = getCurrentPoint();
 
@@ -317,7 +334,7 @@ void SmudgeTool::drawStroke()
         QPointF sourcePoint = mLastBrushPoint;
         for (int i = 0; i < steps; i++)
         {
-            targetImage.paste(&mScribbleArea->mBufferImg);
+            targetImage.paste(&mScribbleArea->mTiledBuffer);
             QPointF targetPoint = mLastBrushPoint + (i + 1) * (brushStep) * (b - mLastBrushPoint) / distance;
             mScribbleArea->liquifyBrush(&targetImage,
                                         sourcePoint,
@@ -342,9 +359,8 @@ void SmudgeTool::drawStroke()
         QPointF sourcePoint = mLastBrushPoint;
         for (int i = 0; i < steps; i++)
         {
-            targetImage.paste(&mScribbleArea->mBufferImg);
+            targetImage.paste(&mScribbleArea->mTiledBuffer);
             QPointF targetPoint = mLastBrushPoint + (i + 1) * (brushStep) * (b - mLastBrushPoint) / distance;
-            rect.extend(targetPoint.toPoint());
             mScribbleArea->blurBrush(&targetImage,
                                      sourcePoint,
                                      targetPoint,

@@ -24,10 +24,10 @@ class VectorImage;
 
 class LayerVector : public Layer
 {
-    Q_OBJECT
+    Q_DECLARE_TR_FUNCTIONS(LayerVector)
 
 public:
-    LayerVector(Object* object);
+    explicit LayerVector(int id);
     ~LayerVector();
 
     // method from layerImage
@@ -45,7 +45,7 @@ public:
 
 protected:
     Status saveKeyFrameFile(KeyFrame*, QString path) override;
-    KeyFrame* createKeyFrame(int position, Object*) override;
+    KeyFrame* createKeyFrame(int position) override;
 
 private:
     QString fileName(KeyFrame* key) const;

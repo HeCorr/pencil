@@ -40,14 +40,11 @@ public:
     void pointerMoveEvent(PointerEvent*) override;
     void pointerReleaseEvent(PointerEvent*) override;
 
-    bool startAdjusting(Qt::KeyboardModifiers modifiers, qreal argStep) override;
-
     void setTolerance(const int tolerance) override;
     void setToleranceEnabled(const bool enabled) override;
     void setWidth(const qreal width) override;
     void setFillExpand(const int fillExpandValue) override;
     void setFillExpandEnabled(const bool enabled) override;
-    void setFillToLayerMode(int layerMode) override;
     void setFillReferenceMode(int referenceMode) override;
     void setFillMode(int mode) override;
 

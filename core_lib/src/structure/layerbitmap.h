@@ -24,10 +24,10 @@ class QDir;
 
 class LayerBitmap : public Layer
 {
-    Q_OBJECT
+    Q_DECLARE_TR_FUNCTIONS(LayerBitmap)
 
 public:
-    LayerBitmap(Object* object);
+    explicit LayerBitmap(int id);
     ~LayerBitmap() override;
 
     QDomElement createDomElement(QDomDocument& doc) const override;
@@ -42,7 +42,7 @@ public:
 
 protected:
     Status saveKeyFrameFile(KeyFrame*, QString strPath) override;
-    KeyFrame* createKeyFrame(int position, Object*) override;
+    KeyFrame* createKeyFrame(int position) override;
 
 private:
     void loadImageAtFrame(QString strFilePath, QPoint topLeft, int frameNumber, qreal opacity);

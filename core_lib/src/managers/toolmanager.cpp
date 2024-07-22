@@ -103,12 +103,16 @@ void ToolManager::setDefaultTool()
 
 void ToolManager::setCurrentTool(ToolType eToolType)
 {
+    // We're already using this tool
+    if (mCurrentTool == getTool(eToolType)) { return; }
+
     if (mCurrentTool != nullptr)
     {
        mCurrentTool->leavingThisTool();
     }
 
     mCurrentTool = getTool(eToolType);
+    mCurrentTool->enteringThisTool();
     if (mTemporaryTool == nullptr && mTabletEraserTool == nullptr)
     {
         emit toolChanged(eToolType);
@@ -251,19 +255,8 @@ void ToolManager::setBucketFillExpand(int expandValue)
     emit toolPropertyChanged(currentTool()->type(), BUCKETFILLEXPAND);
 }
 
-void ToolManager::setBucketFillToLayerMode(int layerMode)
-{
-    currentTool()->setFillToLayerMode(layerMode);
-    emit toolPropertyChanged(currentTool()->type(), BUCKETFILLLAYERMODE);
-}
-
 void ToolManager::setBucketFillReferenceMode(int referenceMode)
 {
-    // If the bucket reference mode is current layer, enforce fillTo is also set to current layer
-    if (bucketReferenceModeIsCurrentLayer(referenceMode)) {
-        currentTool()->setFillToLayerMode(0);
-        emit toolPropertyChanged(currentTool()->type(), BUCKETFILLLAYERMODE);
-    }
     currentTool()->setFillReferenceMode(referenceMode);
     emit toolPropertyChanged(currentTool()->type(), BUCKETFILLLAYERREFERENCEMODE);
 }
@@ -334,6 +327,9 @@ int ToolManager::propertySwitch(bool condition, int tool)
 void ToolManager::tabletSwitchToEraser()
 {
     mTabletEraserTool = getTool(ERASER);
+
+    // We should only notify a tool change if we're positive that the state has changed and it should only happen once
+    // if the user for some reason is using another temporary tool at the same time, that takes first priority
     if (mTemporaryTool == nullptr)
     {
         emit toolChanged(ERASER);
@@ -342,9 +338,9 @@ void ToolManager::tabletSwitchToEraser()
 
 void ToolManager::tabletRestorePrevTool()
 {
-    mTabletEraserTool = nullptr;
-    if (mTemporaryTool == nullptr)
+    if (mTemporaryTool == nullptr && mTabletEraserTool != nullptr)
     {
+        mTabletEraserTool = nullptr;
         emit toolChanged(currentTool()->type());
     }
 }
@@ -417,7 +413,10 @@ void ToolManager::setTemporaryTool(ToolType eToolType)
 
 void ToolManager::clearTemporaryTool()
 {
-    mTemporaryTool = nullptr;
+    if (mTemporaryTool) {
+        mTemporaryTool->leavingThisTool();
+        mTemporaryTool = nullptr;
+    }
     mTemporaryTriggerKeys = {};
     mTemporaryTriggerModifiers = Qt::NoModifier;
     mTemporaryTriggerMouseButtons = Qt::NoButton;

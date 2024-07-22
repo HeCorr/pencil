@@ -64,7 +64,6 @@ enum ToolPropertyType
     USETOLERANCE,
     BUCKETFILLEXPAND,
     USEBUCKETFILLEXPAND,
-    BUCKETFILLLAYERMODE,
     BUCKETFILLLAYERREFERENCEMODE,
     CAMERAPATH,
 };
@@ -117,9 +116,6 @@ inline LayerVisibility& operator--(LayerVisibility& vis)
 
 // Max frames that can be imported and loaded onto the timeline
 const static int MaxFramesBound = 9999;
-
-// Spacer for rotation handle offset
-const static float RotationHandleOffset = 50;
 
 // shortcuts command code
 #define CMD_NEW_FILE  "CmdNewFile"
@@ -184,6 +180,8 @@ const static float RotationHandleOffset = 50;
 #define CMD_REMOVE_SELECTED_FRAMES "CmdRemoveSelectedFrames"
 #define CMD_SELECTION_ADD_FRAME_EXPOSURE "CmdSelectionAddFrameExposure"
 #define CMD_SELECTION_SUBTRACT_FRAME_EXPOSURE "CmdSelectionSubtractFrameExposure"
+#define CMD_SELECTION_FLIP_HORIZONTAL "CmdSelectionFlipHorizontal"
+#define CMD_SELECTION_FLIP_VERTICAL "CmdSelectionFlipVertical"
 #define CMD_MOVE_FRAME_BACKWARD "CmdMoveFrameBackward"
 #define CMD_MOVE_FRAME_FORWARD "CmdMoveFrameForward"
 #define CMD_TOOL_MOVE "CmdToolMove"
@@ -229,7 +227,7 @@ const static float RotationHandleOffset = 50;
 #define SETTING_AUTO_SAVE           "AutoSave"
 #define SETTING_AUTO_SAVE_NUMBER    "AutosaveNumber"
 #define SETTING_TOOL_CURSOR         "ToolCursors"
-#define SETTING_DOTTED_CURSOR       "DottedCursors"
+#define SETTING_CANVAS_CURSOR       "DottedCursors"
 #define SETTING_HIGH_RESOLUTION     "HighResPosition"
 #define SETTING_BACKGROUND_STYLE    "Background"
 #define SETTING_WINDOW_OPACITY      "WindowOpacity"
@@ -306,7 +304,6 @@ const static float RotationHandleOffset = 50;
 #define SETTING_BUCKET_TOLERANCE_ON "BucketToleranceEnabled"
 #define SETTING_BUCKET_FILL_EXPAND "BucketFillExpand"
 #define SETTING_BUCKET_FILL_EXPAND_ON "BucketFillExpandEnabled"
-#define SETTING_BUCKET_FILL_TO_LAYER_MODE "BucketFillToLayerMode"
 #define SETTING_BUCKET_FILL_REFERENCE_MODE "BucketFillReferenceMode"
 
 #define SETTING_FILL_MODE "FillMode"

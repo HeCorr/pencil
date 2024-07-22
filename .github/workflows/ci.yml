@@ -37,15 +37,36 @@ jobs:
         #   os: windows-2019
         #   arch: win32_msvc2019
         #   container:
-        - name: Windows x86_64
+        - name: Qt 5 / Windows x86_64
           os: windows-2019
           arch: win64_msvc2019_64
           container:
+          qt: 5
+        # - name: Qt 6 / Linux x86_64
+        #   os: ubuntu-latest
+        #   # XXX: --privileged is sort of a brute-force solution to get FUSE
+        #   #      working inside Docker, however so far I haven’t been able to
+        #   #      figure out precisely *which* privileges are needed.
+        #   container: { image: "ubuntu:22.04", options: --privileged }
+        #   qt: 6
+        # - name: Qt 6 / macOS x86_64
+        #   os: macos-12
+        #   container:
+        #   qt: 6
+        # - name: Qt 6 / macOS arm64
+        #   os: macos-latest
+        #   container:
+        #   qt: 6
+        # - name: Qt 6 / Windows x86_64
+        #   os: windows-2019
+        #   arch: win64_msvc2019_64
+        #   container:
+        #   qt: 6
 
     name: ${{matrix.name}}
     runs-on: ${{matrix.os}}
     container: ${{matrix.container}}
-
+    env: {ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true}
     steps:
     - name: Install git (Linux)
       # GitHub runners come with git pre-installed, but our "custom" Linux
@@ -63,6 +84,7 @@ jobs:
       uses: ./.github/actions/install-dependencies
       with:
         arch: ${{matrix.arch}}
+        qt: ${{matrix.qt}}
 
     - name: Set up environment
       uses: ./.github/actions/setup-environment
@@ -70,8 +92,10 @@ jobs:
         arch: ${{matrix.arch}}
 
     - name: Configure build
-      run: mkdir build; qmake -o build PREFIX=/usr CONFIG+=release CONFIG+=GIT
-        CONFIG+=PENCIL2D_${{github.ref == 'refs/heads/release' && 'RELEASE' || 'NIGHTLY'}}
+      run: mkdir build; ${{runner.os == 'Linux' && matrix.qt == 6 && 'qmake6' || 'qmake'}}
+        -o build PREFIX=/usr CONFIG-=debug_and_release CONFIG+=release CONFIG+=GIT
+        CONFIG+=PENCIL2D_${{ startsWith(github.ref, 'refs/heads/release/') && 'RELEASE' || 'NIGHTLY' }}
+        VERSION=${{ env.VERSION_NUMBER }}
 
     - name: Build Pencil2D
       working-directory: build
@@ -79,15 +103,18 @@ jobs:
 
     - name: Run tests
       env: { QT_QPA_PLATFORM: minimal }
-      run: build/tests/bin/tests
+      run: build/tests/tests
 
     - name: Create package
       id: package
+      if: runner.os != 'Linux' || matrix.qt == 5
       uses: ./.github/actions/create-package
       with:
         arch: ${{matrix.arch}}
+        qt: ${{matrix.qt}}
 
     - name: Upload package
+      if: runner.os != 'Linux' || matrix.qt == 5
       uses: actions/upload-artifact@v3
       with:
         name: ${{steps.package.outputs.output-basename}}

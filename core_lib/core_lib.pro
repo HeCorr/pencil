@@ -6,16 +6,11 @@
 
 ! include( ../util/common.pri ) { error( Could not find the common.pri file! ) }
 
-QT += core widgets gui xml xmlpatterns multimedia svg
-
 TEMPLATE = lib
-CONFIG += qt staticlib precompile_header
+CONFIG += staticlib precompile_header
+QT += core widgets gui xml multimedia svg
 
 RESOURCES += data/core_lib.qrc
-
-MOC_DIR = .moc
-OBJECTS_DIR = .obj
-UI_DIR = .ui
 
 INCLUDEPATH += src \
     src/graphics \
@@ -31,9 +26,12 @@ INCLUDEPATH += src \
 PRECOMPILED_HEADER = src/corelib-pch.h
 
 HEADERS +=  \
+    src/canvascursorpainter.h \
     src/corelib-pch.h \
     src/graphics/bitmap/bitmapbucket.h \
     src/graphics/bitmap/bitmapimage.h \
+    src/graphics/bitmap/tile.h \
+    src/graphics/bitmap/tiledbuffer.h \
     src/graphics/vector/bezierarea.h \
     src/graphics/vector/beziercurve.h \
     src/graphics/vector/colorref.h \
@@ -86,7 +84,7 @@ HEADERS +=  \
     src/tool/polylinetool.h \
     src/tool/selecttool.h \
     src/tool/smudgetool.h \
-    src/tool/strokemanager.h \
+    src/tool/strokeinterpolator.h \
     src/tool/stroketool.h \
     src/util/blitrect.h \
     src/util/cameraeasingtype.h \
@@ -118,7 +116,10 @@ HEADERS +=  \
 
 
 SOURCES +=  src/graphics/bitmap/bitmapimage.cpp \
+    src/canvascursorpainter.cpp \
     src/graphics/bitmap/bitmapbucket.cpp \
+    src/graphics/bitmap/tile.cpp \
+    src/graphics/bitmap/tiledbuffer.cpp \
     src/graphics/vector/bezierarea.cpp \
     src/graphics/vector/beziercurve.cpp \
     src/graphics/vector/colorref.cpp \
@@ -168,7 +169,7 @@ SOURCES +=  src/graphics/bitmap/bitmapimage.cpp \
     src/tool/polylinetool.cpp \
     src/tool/selecttool.cpp \
     src/tool/smudgetool.cpp \
-    src/tool/strokemanager.cpp \
+    src/tool/strokeinterpolator.cpp \
     src/tool/stroketool.cpp \
     src/util/blitrect.cpp \
     src/util/cameraeasingtype.cpp \

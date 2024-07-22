@@ -24,6 +24,18 @@ GNU General Public License for more details.
 #include "pencilerror.h"
 #include "pencildef.h"
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+Q_MOC_INCLUDE("colormanager.h")
+Q_MOC_INCLUDE("toolmanager.h")
+Q_MOC_INCLUDE("layermanager.h")
+Q_MOC_INCLUDE("playbackmanager.h")
+Q_MOC_INCLUDE("viewmanager.h")
+Q_MOC_INCLUDE("preferencemanager.h")
+Q_MOC_INCLUDE("selectionmanager.h")
+Q_MOC_INCLUDE("soundmanager.h")
+Q_MOC_INCLUDE("overlaymanager.h")
+Q_MOC_INCLUDE("clipboardmanager.h")
+#endif
 
 class QClipboard;
 class QTemporaryDir;
@@ -154,21 +166,15 @@ public: //slots
 
     /** Will call update() and update the canvas
      * Only call this directly If you need the cache to be intact and require the frame to be repainted
-     * Convenient method that does the same as updateFrame but for the current frame
     */
-    void updateCurrentFrame();
-
-    /** Will call update() and update the canvas
-     * Only call this directly If you need the cache to be intact and require the frame to be repainted
-    */
-    void updateFrame(int frameNumber);
+    void updateFrame();
 
     void setModified(int layerNumber, int frameNumber);
 
     void clearCurrentFrame();
 
     Status importImage(const QString& filePath);
-    Status importGIF(const QString& filePath, int numOfImages = 0);
+    Status importAnimatedImage(const QString& filePath, int frameSpacing, const std::function<void (int)>& progressChanged, const std::function<bool ()>& wasCanceled);
     void restoreKey();
 
     void scrubNextKeyFrame();
@@ -176,6 +182,12 @@ public: //slots
     void scrubForward();
     void scrubBackward();
 
+    /**
+     * Attempts to create a new keyframe at the current frame and layer. If the current frame already holds a keyframe,
+     * the new one will instead be created on the first empty frame that follows. If the current layer is not visible, a
+     * warning dialog will be shown to the user and no new keyframe is created.
+     * @return The newly created keyframe or `nullptr` if the layer is not visible
+     */
     KeyFrame* addNewKey();
     void removeKey();
 
@@ -224,7 +236,7 @@ public: //slots
     void resetAutoSaveCounter();
 
 private:
-    Status importBitmapImage(const QString&, int space = 0);
+    Status importBitmapImage(const QString&);
     Status importVectorImage(const QString&);
 
     void pasteToCanvas(BitmapImage* bitmapImage, int frameNumber);
@@ -262,7 +274,16 @@ private:
     bool mAutosaveNeverAskAgain = false;
 
     void makeConnections();
-    KeyFrame* addKeyFrame(int layerNumber, int frameNumber);
+    /**
+     * Attempts to create a new keyframe at the given position and layer. If a keyframe already exists at the position,
+     * the new one will instead be created on the first empty frame that follows. If the layer is not visible, a warning
+     * dialog will be shown to the user and no new keyframe is created.
+     * @param layerNumber The number of an existing layer on which the keyframe is to be created
+     * @param frameIndex The desired position of the new keyframe
+     * @return The newly created keyframe or `nullptr` if the layer is not visible
+     * @see Editor::addNewKey()
+     */
+    KeyFrame* addKeyFrame(int layerNumber, int frameIndex);
 
     QList<QTemporaryDir*> mTemporaryDirs;
 

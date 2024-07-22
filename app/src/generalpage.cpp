@@ -17,8 +17,10 @@ GNU General Public License for more details.
 
 #include "generalpage.h"
 
+#include <memory>
 #include <QMessageBox>
 #include <QSettings>
+#include <QTranslator>
 
 #include "pencildef.h"
 #include "preferencemanager.h"
@@ -35,6 +37,7 @@ GeneralPage::GeneralPage() : ui(new Ui::GeneralPage)
         {
             // translatable string, endonym, locale code
             { tr("Arabic"), QStringLiteral("العربية"), "ar" },
+            { tr("Bulgarian"), QStringLiteral("Български"), "bg" },
             { tr("Catalan"), QStringLiteral("Català"), "ca" },
             { tr("Czech"), QStringLiteral("Čeština"), "cs" },
             { tr("Danish"), QStringLiteral("Dansk"), "da" },
@@ -43,6 +46,7 @@ GeneralPage::GeneralPage() : ui(new Ui::GeneralPage)
             { tr("English"), QStringLiteral("English"), "en" },
             { tr("Spanish"), QStringLiteral("Español"), "es" },
             { tr("Estonian"), QStringLiteral("Eesti"), "et" },
+            { tr("Persian"), QStringLiteral("فارسی"), "fa" },
             { tr("French"), QStringLiteral("Français"), "fr" },
             { tr("Hebrew"), QStringLiteral("עברית"), "he" },
             { tr("Hungarian"), QStringLiteral("Magyar"), "hu_HU" },
@@ -50,6 +54,9 @@ GeneralPage::GeneralPage() : ui(new Ui::GeneralPage)
             { tr("Italian"), QStringLiteral("Italiano"), "it" },
             { tr("Japanese"), QStringLiteral("日本語"), "ja" },
             { tr("Kabyle"), QStringLiteral("Taqbaylit"), "kab" },
+            { tr("Korean"), QStringLiteral("한국어"), "ko" },
+            { tr("Norwegian Bokmål"), QStringLiteral("Norsk bokmål"), "nb" },
+            { tr("Dutch \u2013 Netherlands"), QStringLiteral("Nederlands \u2013 Nederland"), "nl_NL" },
             { tr("Polish"), QStringLiteral("Polski"), "pl" },
             { tr("Portuguese \u2013 Portugal"), QStringLiteral("Português \u2013 Portugal"), "pt_PT" },
             { tr("Portuguese \u2013 Brazil"), QStringLiteral("Português \u2013 Brasil"), "pt_BR" },
@@ -58,6 +65,7 @@ GeneralPage::GeneralPage() : ui(new Ui::GeneralPage)
             { tr("Swedish"), QStringLiteral("Svenska"), "sv" },
             { tr("Turkish"), QStringLiteral("Türkçe"), "tr" },
             { tr("Vietnamese"), QStringLiteral("Tiếng Việt"), "vi" },
+            { tr("Cantonese"), QStringLiteral("粵语"), "yue" },
             { tr("Chinese \u2013 China"), QStringLiteral("简体中文"), "zh_CN" },
             { tr("Chinese \u2013 Taiwan"), QStringLiteral("繁體中文"), "zh_TW" },
         };
@@ -92,7 +100,7 @@ GeneralPage::GeneralPage() : ui(new Ui::GeneralPage)
     ui->backgroundButtons->setId(ui->dotsBackgroundButton, 4);
     ui->backgroundButtons->setId(ui->weaveBackgroundButton, 5);
 
-    auto buttonClicked = static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked);
+    auto buttonClicked = static_cast<void (QButtonGroup::*)(QAbstractButton*)>(&QButtonGroup::buttonClicked);
     auto curIndexChanged = static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged);
     auto spinValueChanged = static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged);
     connect(ui->languageCombo, curIndexChanged, this, &GeneralPage::languageChanged);
@@ -103,7 +111,7 @@ GeneralPage::GeneralPage() : ui(new Ui::GeneralPage)
     connect(ui->antialiasingBox, &QCheckBox::stateChanged, this, &GeneralPage::antiAliasCheckboxStateChanged);
     connect(ui->curveSmoothingLevel, &QSlider::valueChanged, this, &GeneralPage::curveSmoothingChanged);
     connect(ui->highResBox, &QCheckBox::stateChanged, this, &GeneralPage::highResCheckboxStateChanged);
-    connect(ui->dottedCursorBox, &QCheckBox::stateChanged, this, &GeneralPage::dottedCursorCheckboxStateChanged);
+    connect(ui->canvasCursorBox, &QCheckBox::stateChanged, this, &GeneralPage::canvasCursorCheckboxStateChanged);
     connect(ui->gridSizeInputW, spinValueChanged, this, &GeneralPage::gridWidthChanged);
     connect(ui->gridSizeInputH, spinValueChanged, this, &GeneralPage::gridHeightChanged);
     connect(ui->actionSafeCheckBox, &QCheckBox::stateChanged, this, &GeneralPage::actionSafeCheckBoxStateChanged);
@@ -141,8 +149,8 @@ void GeneralPage::updateValues()
     ui->toolCursorsBox->setChecked(mManager->isOn(SETTING::TOOL_CURSOR));
     QSignalBlocker b5(ui->antialiasingBox);
     ui->antialiasingBox->setChecked(mManager->isOn(SETTING::ANTIALIAS));
-    QSignalBlocker b6(ui->dottedCursorBox);
-    ui->dottedCursorBox->setChecked(mManager->isOn(SETTING::DOTTED_CURSOR));
+    QSignalBlocker b6(ui->canvasCursorBox);
+    ui->canvasCursorBox->setChecked(mManager->isOn(SETTING::CANVAS_CURSOR));
     QSignalBlocker b7(ui->gridSizeInputW);
     ui->gridSizeInputW->setValue(mManager->getInt(SETTING::GRID_SIZE_W));
     QSignalBlocker b11(ui->gridSizeInputH);
@@ -191,24 +199,30 @@ void GeneralPage::languageChanged(int i)
     QString strLocale = ui->languageCombo->itemData(i).toString();
     mManager->set(SETTING::LANGUAGE, strLocale);
 
-    QMessageBox::warning(this,
-                         tr("Restart Required"),
-                         tr("The language change will take effect after a restart of Pencil2D"));
+    QLocale locale = strLocale.isEmpty() ? QLocale::system() : QLocale(strLocale);
+    std::unique_ptr<QTranslator> newlangTr(new QTranslator(this));
+    if (newlangTr->load(locale, "pencil", "_", ":/i18n/"))
+    {
+        QMessageBox::warning(this,
+                             newlangTr->translate(staticMetaObject.className(), "Restart Required"),
+                             newlangTr->translate(staticMetaObject.className(), "The language change will take effect after a restart of Pencil2D"));
+    } else {
+        Q_ASSERT(false);
+        QMessageBox::warning(this,
+                             tr("Restart Required"),
+                             tr("The language change will take effect after a restart of Pencil2D"));
+    }
 }
 
-void GeneralPage::backgroundChanged(int value)
+void GeneralPage::backgroundChanged(QAbstractButton* button)
 {
     QString brushName = "white";
-    switch (value)
-    {
-    case 1: brushName = "checkerboard"; break;
-    case 2: brushName = "white"; break;
-    case 3: brushName = "grey"; break;
-    case 4: brushName = "dots"; break;
-    case 5: brushName = "weave"; break;
-    default:
-        break;
-    }
+    if (button == ui->checkerBackgroundButton)    brushName = "checkerboard";
+    else if (button == ui->whiteBackgroundButton) brushName = "white";
+    else if (button == ui->greyBackgroundButton)  brushName = "grey";
+    else if (button == ui->dotsBackgroundButton)  brushName = "dots";
+    else if (button == ui->weaveBackgroundButton) brushName = "weave";
+    else Q_UNREACHABLE();
     mManager->set(SETTING::BACKGROUND_STYLE, brushName);
 }
 
@@ -237,9 +251,9 @@ void GeneralPage::toolCursorsCheckboxStateChanged(int b)
     mManager->set(SETTING::TOOL_CURSOR, b != Qt::Unchecked);
 }
 
-void GeneralPage::dottedCursorCheckboxStateChanged(int b)
+void GeneralPage::canvasCursorCheckboxStateChanged(int b)
 {
-    mManager->set(SETTING::DOTTED_CURSOR, b != Qt::Unchecked);
+    mManager->set(SETTING::CANVAS_CURSOR, b != Qt::Unchecked);
 }
 
 void GeneralPage::gridWidthChanged(int value)

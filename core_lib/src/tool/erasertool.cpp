@@ -23,7 +23,6 @@ GNU General Public License for more details.
 #include "editor.h"
 #include "blitrect.h"
 #include "scribblearea.h"
-#include "strokemanager.h"
 #include "layermanager.h"
 #include "viewmanager.h"
 #include "layervector.h"
@@ -42,6 +41,8 @@ ToolType EraserTool::type()
 
 void EraserTool::loadSettings()
 {
+    StrokeTool::loadSettings();
+
     mPropertyEnabled[WIDTH] = true;
     mPropertyEnabled[USEFEATHER] = true;
     mPropertyEnabled[FEATHER] = true;
@@ -144,29 +145,50 @@ void EraserTool::setStabilizerLevel(const int level)
 
 QCursor EraserTool::cursor()
 {
-    return QCursor(QPixmap(":icons/cross.png"), 10, 10);
+    return QCursor(QPixmap(":icons/general/cross.png"), 10, 10);
 }
 
 void EraserTool::pointerPressEvent(PointerEvent *event)
 {
+    mInterpolator.pointerPressEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     startStroke(event->inputType());
     mLastBrushPoint = getCurrentPoint();
     mMouseDownPoint = getCurrentPoint();
+
+    StrokeTool::pointerPressEvent(event);
 }
 
 void EraserTool::pointerMoveEvent(PointerEvent* event)
 {
+    mInterpolator.pointerMoveEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     if (event->buttons() & Qt::LeftButton && event->inputType() == mCurrentInputType)
     {
-        mCurrentPressure = strokeManager()->getPressure();
+        mCurrentPressure = mInterpolator.getPressure();
         updateStrokes();
-        if (properties.stabilizerLevel != strokeManager()->getStabilizerLevel())
-            strokeManager()->setStabilizerLevel(properties.stabilizerLevel);
+        if (properties.stabilizerLevel != mInterpolator.getStabilizerLevel())
+        {
+            mInterpolator.setStabilizerLevel(properties.stabilizerLevel);
+        }
     }
+
+    StrokeTool::pointerMoveEvent(event);
 }
 
 void EraserTool::pointerReleaseEvent(PointerEvent *event)
 {
+    mInterpolator.pointerReleaseEvent(event);
+    if (handleQuickSizing(event)) {
+        return;
+    }
+
     if (event->inputType() != mCurrentInputType) return;
 
     mEditor->backup(typeName());
@@ -180,8 +202,11 @@ void EraserTool::pointerReleaseEvent(PointerEvent *event)
     {
         drawStroke();
     }
+
     removeVectorPaint();
     endStroke();
+
+    StrokeTool::pointerReleaseEvent(event);
 }
 
 // draw a single paint dab at the given location
@@ -199,6 +224,7 @@ void EraserTool::paintAt(QPointF point)
                                  brushWidth,
                                  properties.feather,
                                  QColor(255, 255, 255, 255),
+                                 QPainter::CompositionMode_SourceOver,
                                  opacity,
                                  properties.useFeather,
                                  properties.useAA == ON);
@@ -208,7 +234,7 @@ void EraserTool::paintAt(QPointF point)
 void EraserTool::drawStroke()
 {
     StrokeTool::drawStroke();
-    QList<QPointF> p = strokeManager()->interpolateStroke();
+    QList<QPointF> p = mInterpolator.interpolateStroke();
 
     Layer* layer = mEditor->layers()->currentLayer();
 
@@ -238,6 +264,7 @@ void EraserTool::drawStroke()
                                      brushWidth,
                                      properties.feather,
                                      Qt::white,
+                                     QPainter::CompositionMode_SourceOver,
                                      opacity,
                                      properties.useFeather,
                                      properties.useAA == ON);
@@ -252,7 +279,7 @@ void EraserTool::drawStroke()
         mCurrentWidth = properties.width;
         if (properties.pressure)
         {
-            mCurrentWidth = (mCurrentWidth + (strokeManager()->getPressure() * mCurrentWidth)) * 0.5;
+            mCurrentWidth = (mCurrentWidth + (mInterpolator.getPressure() * mCurrentWidth)) * 0.5;
         }
         qreal brushWidth = mCurrentWidth;
 
@@ -272,14 +299,9 @@ void EraserTool::drawStroke()
 void EraserTool::removeVectorPaint()
 {
     Layer* layer = mEditor->layers()->currentLayer();
-    if (layer->type() == Layer::BITMAP)
+    if (layer->type() == Layer::VECTOR)
     {
-        mScribbleArea->paintBitmapBuffer();
-        mScribbleArea->clearBitmapBuffer();
-    }
-    else if (layer->type() == Layer::VECTOR)
-    {
-        mScribbleArea->clearBitmapBuffer();
+        mScribbleArea->clearDrawingBuffer();
         VectorImage* vectorImage = static_cast<LayerVector*>(layer)->getLastVectorImageAtFrame(mEditor->currentFrame(), 0);
         if (vectorImage == nullptr) { return; } // Can happen if the first frame is deleted while drawing
         // Clear the area containing the last point

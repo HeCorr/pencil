@@ -21,6 +21,7 @@ GNU General Public License for more details.
 #include <QResizeEvent>
 #include <QInputDialog>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QSettings>
 
 #include "camerapropertiesdialog.h"
@@ -604,10 +605,10 @@ void TimeLineCells::paintLabel(QPainter& painter, const Layer* layer,
     painter.drawEllipse(x + 6, y + 4, 9, 9);
     painter.setRenderHint(QPainter::Antialiasing, false);
 
-    if (layer->type() == Layer::BITMAP) painter.drawPixmap(QPoint(20, y + 2), QPixmap(":/icons/layer-bitmap.png"));
-    if (layer->type() == Layer::VECTOR) painter.drawPixmap(QPoint(20, y + 2), QPixmap(":/icons/layer-vector.png"));
-    if (layer->type() == Layer::SOUND) painter.drawPixmap(QPoint(21, y + 2), QPixmap(":/icons/layer-sound.png"));
-    if (layer->type() == Layer::CAMERA) painter.drawPixmap(QPoint(21, y + 2), QPixmap(":/icons/layer-camera.png"));
+    if (layer->type() == Layer::BITMAP) painter.drawPixmap(QPoint(22, y - 1), QPixmap(":icons/themes/playful/timeline/cell-bitmap.svg"));
+    if (layer->type() == Layer::VECTOR) painter.drawPixmap(QPoint(22, y - 1), QPixmap(":icons/themes/playful/timeline/cell-vector.svg"));
+    if (layer->type() == Layer::SOUND) painter.drawPixmap(QPoint(22, y - 1), QPixmap(":icons/themes/playful/timeline/cell-sound.svg"));
+    if (layer->type() == Layer::CAMERA) painter.drawPixmap(QPoint(22, y - 1), QPixmap(":icons/themes/playful/timeline/cell-camera.svg"));
 
     if (selected)
     {
@@ -746,7 +747,10 @@ void TimeLineCells::paintEvent(QPaintEvent*)
             {
                 paintHighlightedFrame(painter, mHighlightedFrame, recTop, standardWidth, recHeight);
             }
-            paintFrameCursorOnCurrentLayer(painter, recTop, standardWidth, recHeight);
+            if (currentLayer->visible())
+            {
+                paintFrameCursorOnCurrentLayer(painter, recTop, standardWidth, recHeight);
+            }
         }
 
         // --- draw the position of the current frame
@@ -859,7 +863,7 @@ void TimeLineCells::mousePressEvent(QMouseEvent* event)
         }
         break;
     case TIMELINE_CELL_TYPE::Tracks:
-        if (event->button() == Qt::MidButton)
+        if (event->button() == Qt::MiddleButton)
         {
             mLastFrameNumber = getFrameNumber(event->pos().x());
         }
@@ -993,7 +997,7 @@ void TimeLineCells::mouseMoveEvent(QMouseEvent* event)
     }
     else if (mType == TIMELINE_CELL_TYPE::Tracks)
     {
-        if (primaryButton == Qt::MidButton)
+        if (primaryButton == Qt::MiddleButton)
         {
             mFrameOffset = qMin(qMax(0, mFrameLength - width() / getFrameSize()), qMax(0, mFrameOffset + mLastFrameNumber - mFramePosMoveX));
             update();
@@ -1031,6 +1035,7 @@ void TimeLineCells::mouseMoveEvent(QMouseEvent* event)
                             currentLayer->deselectAll();
                             currentLayer->setFrameSelected(mStartFrameNumber, true);
                             currentLayer->extendSelectionTo(mFramePosMoveX);
+                            emit mEditor->selectedFramesChanged();
                         }
                         mLastFrameNumber = mFramePosMoveX;
                         updateContent();
@@ -1050,7 +1055,7 @@ void TimeLineCells::mouseReleaseEvent(QMouseEvent* event)
     if (frameNumber < 1) frameNumber = 1;
     int layerNumber = getLayerNumber(event->pos().y());
 
-    if (mType == TIMELINE_CELL_TYPE::Tracks && mCurrentLayerNumber != -1 && primaryButton != Qt::MidButton)
+    if (mType == TIMELINE_CELL_TYPE::Tracks && mCurrentLayerNumber != -1 && primaryButton != Qt::MiddleButton)
     {
         // We should affect the current layer based on what's selected, not where the mouse currently is.
         Layer* currentLayer = mEditor->layers()->getLayer(mCurrentLayerNumber);
@@ -1125,8 +1130,11 @@ void TimeLineCells::mouseDoubleClickEvent(QMouseEvent* event)
     {
         if (mType == TIMELINE_CELL_TYPE::Tracks && (layerNumber != -1) && (frameNumber > 0) && layerNumber < mEditor->object()->getLayerCount())
         {
-            mEditor->scrubTo(frameNumber);
-            emit insertNewKeyFrame();
+            if (!layer->keyExistsWhichCovers(frameNumber))
+            {
+                mEditor->scrubTo(frameNumber);
+                emit insertNewKeyFrame();
+            }
 
             // The release event will toggle the frame on again, so we make sure it gets
             // deselected now instead.
@@ -1155,7 +1163,7 @@ void TimeLineCells::editLayerProperties(Layer *layer) const
 
 void TimeLineCells::editLayerProperties(LayerCamera* cameraLayer) const
 {
-    QRegExp regex("([\\xFFEF-\\xFFFF])+");
+    QRegularExpression regex("([\\x{FFEF}-\\x{FFFF}])+");
 
     CameraPropertiesDialog dialog(cameraLayer->name(), cameraLayer->getViewRect().width(),
                                   cameraLayer->getViewRect().height());
@@ -1178,7 +1186,7 @@ void TimeLineCells::editLayerProperties(LayerCamera* cameraLayer) const
 
 void TimeLineCells::editLayerName(Layer* layer) const
 {
-    QRegExp regex("([\\xFFEF-\\xFFFF])+");
+    QRegularExpression regex("([\\x{FFEF}-\\x{FFFF}])+");
 
     bool ok;
     QString name = QInputDialog::getText(nullptr, tr("Layer Properties"),
