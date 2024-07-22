@@ -671,12 +671,15 @@ void ScribbleArea::pointerPressEvent(PointerEvent* event)
         }
     }
 
-    if (event->buttons() & (Qt::MidButton) &&
-    //if (event->buttons() & (Qt::MiddleButton | Qt::RightButton) &&
-        editor()->tools()->setTemporaryTool(HAND, event->buttons()))
+    if (event->buttons() == Qt::MidButton && editor()->tools()->setTemporaryTool(HAND, event->buttons()))
     {
         currentTool()->pointerPressEvent(event);
-    } else if (event->button() == Qt::LeftButton)
+    }
+    else if (event->buttons() == Qt::RightButton && editor()->tools()->setTemporaryTool(ERASER, event->buttons()))
+    {
+        currentTool()->pointerPressEvent(event);
+    }
+    else if (event->button() == Qt::LeftButton)
     {
         currentTool()->pointerPressEvent(event);
     }
