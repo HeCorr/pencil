@@ -203,6 +203,12 @@ bool PolylineTool::keyPressEvent(QKeyEvent* event)
 {
     switch (event->key())
     {
+    case Qt::Key_Control:
+        mClosed = true;
+        drawPolyline(mPoints, getCurrentPoint());
+        return true;
+        break;
+
     case Qt::Key_Return:
         if (mPoints.size() > 0)
         {
@@ -242,6 +248,23 @@ bool PolylineTool::keyPressEvent(QKeyEvent* event)
     return BaseTool::keyPressEvent(event);
 }
 
+bool PolylineTool::keyReleaseEvent(QKeyEvent* event)
+{
+    switch (event->key())
+    {
+    case Qt::Key_Control:
+        mClosed = false;
+        drawPolyline(mPoints, getCurrentPoint());
+        return true;
+        break;
+
+    default:
+        break;
+    }
+
+    return BaseTool::keyReleaseEvent(event);
+}
+
 void PolylineTool::drawPolyline(QList<QPointF> points, QPointF endPoint)
 {
     if (points.size() > 0)
@@ -264,6 +287,11 @@ void PolylineTool::drawPolyline(QList<QPointF> points, QPointF endPoint)
             tempPath = BezierCurve(points).getStraightPath();
         }
         tempPath.lineTo(endPoint);
+
+        if (mClosed && points.size() > 1)
+        {
+            tempPath.closeSubpath();
+        }
 
         // Vector otherwise
         if (layer->type() == Layer::VECTOR)
