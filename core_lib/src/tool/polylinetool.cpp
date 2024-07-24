@@ -43,6 +43,8 @@ void PolylineTool::loadSettings()
 {
     StrokeTool::loadSettings();
 
+    connect(mEditor, &Editor::shouldRemoveLastPolylineSegment, this, &PolylineTool::removeLastSegment);
+
     mPropertyEnabled[WIDTH] = true;
     mPropertyEnabled[BEZIER] = true;
     mPropertyEnabled[ANTI_ALIASING] = true;
@@ -199,6 +201,21 @@ void PolylineTool::pointerDoubleClickEvent(PointerEvent* event)
     endPolyline(mPoints);
 }
 
+void PolylineTool::removeLastSegment()
+{
+    if (!isActive()) return;
+
+    if (mPoints.size() > 1)
+    {
+        mPoints.removeLast();
+        drawPolyline(mPoints, getCurrentPoint());
+    }
+    else if (mPoints.size() == 1)
+    {
+        cancelPolyline();
+        clearToolData();
+    }
+}
 
 bool PolylineTool::keyPressEvent(QKeyEvent* event)
 {

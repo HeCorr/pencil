@@ -54,6 +54,7 @@ private:
     QList<QPointF> mPoints;
     bool mClosed = false;
 
+    void removeLastSegment();
     void drawPolyline(QList<QPointF> points, QPointF endPoint);
     void cancelPolyline();
     void endPolyline(QList<QPointF> points);
